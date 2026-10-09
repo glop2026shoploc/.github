@@ -3,14 +3,20 @@ name: Front CI
 on:
   workflow_call:
     inputs:
+      image-name:
+        required: true
+        type: string
       node-version:
         required: false
         type: string
-        default: '20'
+        default: '22'
 
 jobs:
-  build-and-test:
+  build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout du code
         uses: actions/checkout@v4
@@ -27,5 +33,34 @@ jobs:
       - name: Vérification du code (Linter)
         run: npm run lint
 
-      - name: Test de compilation Next.js
+      - name: Tests
+        run: npm test --if-present
+
+      - name: Build Next.js
         run: npm run build
+
+      - name: Login GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tags de l'image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image-name }}
+          tags: |
+            type=sha
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push de l'image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
