@@ -53,6 +53,7 @@ jobs:
             -Dsonar.organization=${{ github.repository_owner }}
             -Dsonar.projectKey=${{ github.repository_owner }}_${{ github.event.repository.name }}
             -Dsonar.exclusions=**/node_modules/**,.next/**,**/*.css
+            -Dsonar.coverage.exclusions=**/*
 
       - name: Login GHCR
         if: ${{ env.PUBLISH == 'true' }}
